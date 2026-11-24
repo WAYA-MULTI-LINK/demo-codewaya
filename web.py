@@ -66,6 +66,8 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", CONTENT_TYPES.get(ext, "application/octet-stream"))
         self.send_header("Content-Length", str(len(body)))
+        # Without this the browser reuses stale CSS/JS between edits.
+        self.send_header("Cache-Control", "no-cache, must-revalidate")
         self.end_headers()
         self.wfile.write(body)
 

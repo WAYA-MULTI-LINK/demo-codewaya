@@ -12,9 +12,7 @@
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(1200px 600px at 15% -20%, rgba(56, 189, 248, 0.16) 0%, transparent 60%),
-    var(--bs-body-bg);
+  background: orange;
 }
 
 .app-container { max-width: 760px; }

@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import tempfile
 import threading
 import unittest
@@ -139,6 +140,16 @@ class TestWebApi(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as ctx:
             urllib.request.urlopen(req)
         self.assertIn(ctx.exception.code, (403, 404))
+
+    def test_stylesheet_sets_orange_page_background(self):
+        with urllib.request.urlopen(self.base + "/style.css") as res:
+            css = res.read().decode("utf-8")
+
+        body = re.search(r"\bbody\s*\{([^}]*)\}", css)
+        self.assertIsNotNone(body)
+        decls = body.group(1)
+        self.assertRegex(decls, r"(?m)^\s*background:\s*orange\s*;")
+        self.assertNotIn("radial-gradient", decls)
 
 
 if __name__ == "__main__":
