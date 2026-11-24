@@ -61,6 +61,30 @@ class TaskManager:
             return True
         return False
 
+    def set_completed(self, task_id: int, completed: bool) -> Optional[Task]:
+        task = self.get_task(task_id)
+        if task:
+            task.completed = completed
+            self.save()
+            return task
+        return None
+
+    def update_task(
+        self,
+        task_id: int,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Optional[Task]:
+        task = self.get_task(task_id)
+        if not task:
+            return None
+        if title is not None:
+            task.title = title
+        if description is not None:
+            task.description = description
+        self.save()
+        return task
+
     def delete_task(self, task_id: int) -> bool:
         task = self.get_task(task_id)
         if task:

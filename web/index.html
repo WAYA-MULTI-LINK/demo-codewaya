@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Task Checklist</title>
+  <link rel="stylesheet" href="/vendor/bootstrap.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <nav class="navbar border-bottom app-navbar">
+    <div class="container app-container">
+      <span class="navbar-brand d-flex align-items-center gap-2 mb-0">
+        <span class="brand-mark" aria-hidden="true">✓</span>
+        <span>Task Checklist</span>
+      </span>
+      <span class="badge rounded-pill text-bg-secondary d-none d-sm-inline">JSON API + Web UI</span>
+    </div>
+  </nav>
+
+  <main class="container app-container py-4 py-lg-5">
+    <header class="mb-4">
+      <h1 class="display-6 fw-semibold mb-2">Task Checklist</h1>
+      <p class="subtitle text-secondary mb-0">Add, complete, edit and delete your tasks.</p>
+    </header>
+
+    <section class="card shadow-sm mb-4" aria-label="Add a task">
+      <div class="card-body">
+        <form id="add-form" class="row g-2" autocomplete="off">
+          <div class="col-12 col-lg-5">
+            <label class="visually-hidden" for="title">Task title</label>
+            <input id="title" name="title" type="text" class="form-control" placeholder="What needs to be done?" required maxlength="200" />
+          </div>
+          <div class="col-12 col-lg-5">
+            <label class="visually-hidden" for="description">Description</label>
+            <input id="description" name="description" type="text" class="form-control" placeholder="Description (optional)" maxlength="500" />
+          </div>
+          <div class="col-12 col-lg-2 d-grid">
+            <button type="submit" class="btn btn-primary fw-semibold">Add task</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <div class="toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <div class="filters btn-group btn-group-sm" role="group" aria-label="Filter tasks">
+        <button type="button" class="btn btn-outline-secondary active" data-filter="all" aria-pressed="true">All</button>
+        <button type="button" class="btn btn-outline-secondary" data-filter="active" aria-pressed="false">Active</button>
+        <button type="button" class="btn btn-outline-secondary" data-filter="done" aria-pressed="false">Completed</button>
+      </div>
+      <span id="counter" class="counter text-secondary small fw-medium"></span>
+    </div>
+
+    <p id="error" class="alert alert-danger py-2 mb-3" role="alert" hidden></p>
+
+    <ul id="task-list" class="task-list list-group list-group-flush"></ul>
+    <p id="empty" class="empty text-secondary text-center border rounded-3 py-5 my-0" hidden>No tasks yet. Add one above!</p>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

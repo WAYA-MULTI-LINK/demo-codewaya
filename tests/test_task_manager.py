@@ -50,6 +50,19 @@ class TestTaskManager(unittest.TestCase):
         self.assertEqual(len(incomplete), 1)
         self.assertEqual(incomplete[0].title, "B")
 
+    def test_set_completed(self):
+        task = self.manager.add_task("Toggle me")
+        self.assertTrue(self.manager.set_completed(task.id, True).completed)
+        self.assertFalse(self.manager.set_completed(task.id, False).completed)
+        self.assertIsNone(self.manager.set_completed(999, True))
+
+    def test_update_task(self):
+        task = self.manager.add_task("Old", "old desc")
+        updated = self.manager.update_task(task.id, title="New", description="new desc")
+        self.assertEqual(updated.title, "New")
+        self.assertEqual(updated.description, "new desc")
+        self.assertIsNone(self.manager.update_task(999, title="x"))
+
     def test_ids_not_reused(self):
         self.manager.add_task("A")
         self.manager.add_task("B")
