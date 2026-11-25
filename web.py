@@ -84,21 +84,22 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
         return data
 
     def _serve_static(self, path: str) -> None:
-        """Serve ``index.html`` for ``/`` and 404 for anything else."""
-        rel = "index.html" if path in ("/", "") else path.lstrip("/")
-        full = os.path.normpath(os.path.join(BASE_DIR, rel))
-        if not full.startswith(BASE_DIR + os.sep) and full != BASE_DIR:
-            self._send_error_json(403, "Forbidden")
-            return
-        if not os.path.isfile(full):
+        """Serve the single ``index.html`` asset for ``/``; 404 for everything else.
+
+        The app ships exactly one static file, so only that file is ever read.
+        Any other path (``/web.py``, ``/tasks.json``, ``/.git/...``) is refused,
+        which avoids exposing arbitrary files from the application directory.
+        """
+        if path not in ("/", ""):
             self._send_error_json(404, NOT_FOUND)
             return
-        ext = os.path.splitext(full)[1]
-        with open(full, "rb") as handle:
+        if not os.path.isfile(INDEX_FILE):
+            self._send_error_json(404, NOT_FOUND)
+            return
+        with open(INDEX_FILE, "rb") as handle:
             body = handle.read()
         self.send_response(200)
-        content_type = CONTENT_TYPES.get(ext, "application/octet-stream")
-        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Type", CONTENT_TYPES[".html"])
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-cache, must-revalidate")
         self.end_headers()

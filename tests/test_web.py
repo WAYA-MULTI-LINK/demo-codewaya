@@ -143,6 +143,14 @@ class ApiTestCase(unittest.TestCase):
             self.assertEqual(resp.status, 200)
             self.assertIn("Task Checklist", resp.read().decode("utf-8"))
 
+    def test_static_does_not_expose_arbitrary_files(self):
+        for path in ("/web.py", "/tasks.json", "/%2e%2e/web.py", "/.git/config"):
+            try:
+                with urllib.request.urlopen(self.url(path), timeout=10) as resp:
+                    self.assertEqual(resp.status, 404, path)
+            except urllib.error.HTTPError as exc:
+                self.assertEqual(exc.code, 404, path)
+
 
 if __name__ == "__main__":
     unittest.main()
