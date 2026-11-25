@@ -166,6 +166,19 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
             return
         self._send_error_json(404, NOT_FOUND)
 
+    def _respond_task(self, task_id: int) -> None:
+        """Send the current state of ``task_id``, or 404 if it vanished.
+
+        A concurrent ``DELETE`` can remove the task between a successful
+        mutation and this read; re-fetching here and guarding ``None`` prevents a
+        500 on the race.
+        """
+        task = self.manager.get_task(task_id)
+        if task is None:
+            self._send_error_json(404, TASK_NOT_FOUND)
+            return
+        self._send_json(task.to_dict())
+
     def _handle_action(self, task_id: int, action: str) -> None:
         """Apply ``complete`` or ``reopen`` to ``task_id``."""
         if action == "complete":
@@ -175,7 +188,7 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
         if not ok:
             self._send_error_json(404, TASK_NOT_FOUND)
             return
-        self._send_json(self.manager.get_task(task_id).to_dict())
+        self._respond_task(task_id)
 
     def _toggle_completed(self, task_id: int, completed: bool) -> None:
         """Set ``task_id`` to completed or pending and respond with its state."""
@@ -190,7 +203,7 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
         if not ok:
             self._send_error_json(404, TASK_NOT_FOUND)
             return
-        self._send_json(self.manager.get_task(task_id).to_dict())
+        self._respond_task(task_id)
 
     def _apply_field_edit(self, task_id: int) -> None:
         """Read the request body and apply a partial field update to ``task_id``.
@@ -227,7 +240,7 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
         if not ok:
             self._send_error_json(404, TASK_NOT_FOUND)
             return
-        self._send_json(self.manager.get_task(task_id).to_dict())
+        self._respond_task(task_id)
 
     def do_DELETE(self) -> None:
         """Handle ``DELETE /api/tasks/{id}``."""
