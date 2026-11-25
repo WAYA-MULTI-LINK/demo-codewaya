@@ -74,9 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_p.add_argument("--due", help="Due date (YYYY-MM-DD)")
     add_p.add_argument("--priority", choices=PRIORITIES, help="Task priority")
 
-    list_p = sub.add_parser(
-        "list", aliases=["index"], help="List tasks (alias: index)"
-    )
+    list_p = sub.add_parser("list", aliases=["index"], help="List tasks (alias: index)")
     list_p.add_argument(
         "-a", "--all", action="store_true", help="Include completed tasks"
     )

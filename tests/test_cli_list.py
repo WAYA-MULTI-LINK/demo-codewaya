@@ -4,7 +4,8 @@ import sys
 import tempfile
 import unittest
 
-CLI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cli.py")
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CLI = os.path.join(REPO_ROOT, "cli.py")
 
 
 class TestCliList(unittest.TestCase):
@@ -67,9 +68,7 @@ class TestCliList(unittest.TestCase):
     def test_index_alias_lists_tasks(self):
         """``index`` behaves exactly like ``list``."""
         self.seed()
-        self.assertEqual(
-            self.run_cli("index").stdout, self.run_cli("list").stdout
-        )
+        self.assertEqual(self.run_cli("index").stdout, self.run_cli("list").stdout)
 
 
 if __name__ == "__main__":

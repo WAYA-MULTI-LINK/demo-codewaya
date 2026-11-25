@@ -95,3 +95,15 @@ python -m unittest discover -s tests -t .
 The US-01 acceptance criteria (unique incrementing ids, `-d/--description`,
 pending by default, immediate persistence) are covered end to end by
 `tests/test_cli_add.py`, which drives the real CLI in a temporary folder.
+`tests/test_web.py` boots the real HTTP server and exercises every API endpoint.
+
+## Lint and format
+
+Linting is configured in `pyproject.toml` and enforced in CI (`.github/workflows/ci.yml`):
+
+```bash
+pip install ruff
+ruff check .          # lint
+ruff format --check . # formatting check (drop --check to apply)
+```
+

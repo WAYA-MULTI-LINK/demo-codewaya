@@ -95,7 +95,7 @@ class TestIndexPage(unittest.TestCase):
 
     def test_hides_completed_when_toggle_is_off(self):
         """Unchecking "show completed" filters completed tasks out."""
-        self.assertIn('task.completed', self.source)
+        self.assertIn("task.completed", self.source)
         self.assertIn("toggle.checked", self.source)
 
     def test_loads_tasks_json_and_handles_missing_file(self):

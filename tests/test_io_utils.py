@@ -2,8 +2,8 @@ import os
 import tempfile
 import unittest
 
-from task_manager import TaskManager
 from io_utils import export_tasks, import_tasks, safe_path
+from task_manager import TaskManager
 
 
 class TestIOUtils(unittest.TestCase):
