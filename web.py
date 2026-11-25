@@ -38,6 +38,7 @@ TASK_ITEM = re.compile(r"^/api/tasks/(\d+)$")
 TASK_ACTION = re.compile(r"^/api/tasks/(\d+)/(complete|reopen)$")
 
 NOT_FOUND = "Not found"
+TASK_NOT_FOUND = "Task not found"
 
 
 class TaskRequestHandler(BaseHTTPRequestHandler):
@@ -161,7 +162,7 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
             return
         item = TASK_ITEM.match(path)
         if item:
-            self._handle_edit(int(item.group(1)))
+            self._apply_field_edit(int(item.group(1)))
             return
         self._send_error_json(404, NOT_FOUND)
 
@@ -172,12 +173,27 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
         else:
             ok = self.manager.reopen_task(task_id)
         if not ok:
-            self._send_error_json(404, "Task not found")
+            self._send_error_json(404, TASK_NOT_FOUND)
             return
         self._send_json(self.manager.get_task(task_id).to_dict())
 
-    def _handle_edit(self, task_id: int) -> None:
-        """Apply a partial update to ``task_id``.
+    def _toggle_completed(self, task_id: int, completed: bool) -> None:
+        """Set ``task_id`` to completed or pending and respond with its state."""
+        if not isinstance(completed, bool):
+            self._send_error_json(400, "completed must be a boolean")
+            return
+        ok = (
+            self.manager.complete_task(task_id)
+            if completed
+            else self.manager.reopen_task(task_id)
+        )
+        if not ok:
+            self._send_error_json(404, TASK_NOT_FOUND)
+            return
+        self._send_json(self.manager.get_task(task_id).to_dict())
+
+    def _apply_field_edit(self, task_id: int) -> None:
+        """Read the request body and apply a partial field update to ``task_id``.
 
         A boolean ``completed`` toggles completion; other keys edit fields. Omitted
         keys are left unchanged, while ``due_date``/``priority`` may be cleared by
@@ -190,18 +206,7 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
             return
 
         if "completed" in data:
-            if not isinstance(data["completed"], bool):
-                self._send_error_json(400, "completed must be a boolean")
-                return
-            ok = (
-                self.manager.complete_task(task_id)
-                if data["completed"]
-                else self.manager.reopen_task(task_id)
-            )
-            if not ok:
-                self._send_error_json(404, "Task not found")
-                return
-            self._send_json(self.manager.get_task(task_id).to_dict())
+            self._toggle_completed(task_id, data["completed"])
             return
 
         kwargs = {}
@@ -220,7 +225,7 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
             self._send_error_json(400, str(exc))
             return
         if not ok:
-            self._send_error_json(404, "Task not found")
+            self._send_error_json(404, TASK_NOT_FOUND)
             return
         self._send_json(self.manager.get_task(task_id).to_dict())
 
@@ -231,7 +236,7 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
             self._send_error_json(404, NOT_FOUND)
             return
         if not self.manager.delete_task(int(match.group(1))):
-            self._send_error_json(404, "Task not found")
+            self._send_error_json(404, TASK_NOT_FOUND)
             return
         self._send_json({"deleted": True})
 
