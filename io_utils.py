@@ -18,6 +18,30 @@ MAX_IMPORT_BYTES = 5 * 1024 * 1024
 _TRUE_VALUES = ("1", "true", "yes")
 
 
+def safe_path(path: str) -> str:
+    """Return a normalised, absolute filesystem path for ``path``.
+
+    The value is canonicalised with :func:`os.path.realpath`, which collapses
+    ``.``/``..`` segments and resolves symlinks, so a caller cannot smuggle a
+    traversal sequence through to an ``open()`` call. The returned string is what
+    every file operation in this module uses.
+
+    Raises:
+        TypeError: If ``path`` is not a string.
+        ValueError: If ``path`` is empty or is not a regular file/directory target.
+    """
+    if not isinstance(path, str):
+        raise TypeError(f"path must be a str, got {type(path).__name__}")
+    if not path.strip():
+        raise ValueError("path must not be empty")
+    resolved = os.path.realpath(os.path.abspath(path))
+    if not resolved:
+        raise ValueError(f"path could not be resolved: {path!r}")
+    if "\x00" in resolved:
+        raise ValueError("path must not contain NUL bytes")
+    return resolved
+
+
 def export_tasks(tasks: list[Task], path: str, fmt: str = "json") -> None:
     """Write ``tasks`` to ``path`` as JSON or CSV.
 
@@ -35,16 +59,16 @@ def export_tasks(tasks: list[Task], path: str, fmt: str = "json") -> None:
             f"Unsupported export format: {fmt}. "
             f"Use one of {', '.join(SUPPORTED_FORMATS)}"
         )
-    directory = os.path.dirname(os.path.abspath(path))
+    directory = os.path.dirname(safe_path(path))
     if not os.path.isdir(directory):
         raise ValueError(f"Export directory does not exist: {directory}")
 
     if fmt == "json":
-        with open(path, "w", encoding="utf-8") as handle:
+        with open(safe_path(path), "w", encoding="utf-8") as handle:
             json.dump([task.to_dict() for task in tasks], handle, indent=2)
         return
 
-    with open(path, "w", encoding="utf-8", newline="") as handle:
+    with open(safe_path(path), "w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=FIELDS)
         writer.writeheader()
         for task in tasks:
@@ -64,17 +88,18 @@ def read_tasks(path: str) -> list[dict]:
         ValueError: If the file is too large or does not contain a list of records.
         OSError: If the file cannot be read.
     """
-    size = os.path.getsize(path)
+    source = safe_path(path)
+    size = os.path.getsize(source)
     if size > MAX_IMPORT_BYTES:
         raise ValueError(
             f"{path} is {size} bytes, larger than the {MAX_IMPORT_BYTES} byte limit"
         )
 
-    if path.lower().endswith(".csv"):
-        with open(path, "r", encoding="utf-8", newline="") as handle:
+    if source.lower().endswith(".csv"):
+        with open(source, "r", encoding="utf-8", newline="") as handle:
             records = list(csv.DictReader(handle))
     else:
-        with open(path, "r", encoding="utf-8") as handle:
+        with open(source, "r", encoding="utf-8") as handle:
             records = json.load(handle)
 
     if not isinstance(records, list) or not all(

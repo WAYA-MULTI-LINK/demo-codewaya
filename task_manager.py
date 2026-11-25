@@ -200,7 +200,9 @@ class TaskManager:
 
     def __init__(self, storage_file: str = "tasks.json") -> None:
         """Load the store backed by ``storage_file``, starting empty if it is absent."""
-        self.storage_file = storage_file
+        if not isinstance(storage_file, str) or not storage_file.strip():
+            raise ValueError("storage_file must be a non-empty string")
+        self.storage_file = os.path.realpath(os.path.abspath(storage_file))
         self.tasks: list[Task] = []
         self._next_id = 1
         self._lock = threading.RLock()

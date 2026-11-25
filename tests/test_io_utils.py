@@ -3,7 +3,7 @@ import tempfile
 import unittest
 
 from task_manager import TaskManager
-from io_utils import export_tasks, import_tasks
+from io_utils import export_tasks, import_tasks, safe_path
 
 
 class TestIOUtils(unittest.TestCase):
@@ -39,6 +39,23 @@ class TestIOUtils(unittest.TestCase):
         count = import_tasks(m2, out_csv)
         self.assertEqual(count, 1)
         self.assertEqual(m2.tasks[0].title, "T1")
+
+
+class TestSafePath(unittest.TestCase):
+    def test_returns_absolute_normalised_path(self):
+        resolved = safe_path("sub/../tasks.json")
+        self.assertTrue(os.path.isabs(resolved))
+        self.assertNotIn("..", resolved)
+
+    def test_rejects_empty_and_non_string(self):
+        with self.assertRaises(ValueError):
+            safe_path("   ")
+        with self.assertRaises(TypeError):
+            safe_path(None)  # type: ignore[arg-type]
+
+    def test_rejects_nul_bytes(self):
+        with self.assertRaises(ValueError):
+            safe_path("tasks\x00.json")
 
 
 if __name__ == "__main__":
