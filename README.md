@@ -97,6 +97,15 @@ pending by default, immediate persistence) are covered end to end by
 `tests/test_cli_add.py`, which drives the real CLI in a temporary folder.
 `tests/test_web.py` boots the real HTTP server and exercises every API endpoint.
 
+## End-to-end smoke test
+
+```bash
+python scripts/smoke.py
+```
+
+Drives every CLI command **and** every HTTP API endpoint, plus the web viewer, against
+throwaway storage. Prints a PASS/FAIL line per feature and exits non-zero on any failure.
+
 ## Lint and format
 
 Linting is configured in `pyproject.toml` and enforced in CI (`.github/workflows/ci.yml`):
