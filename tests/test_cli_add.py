@@ -1,11 +1,9 @@
 import json
-import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Dict, List
 
 from task_manager import TaskManager
 
@@ -33,7 +31,7 @@ class TestAddTaskCli(unittest.TestCase):
         self.workdir = Path(self.tmp_dir.name)
         self.storage = self.workdir / "tasks.json"
 
-    def stored_tasks(self) -> List[Dict]:
+    def stored_tasks(self) -> list[dict]:
         """Return the raw task records persisted to the storage file."""
         with open(self.storage, encoding="utf-8") as handle:
             return json.load(handle)

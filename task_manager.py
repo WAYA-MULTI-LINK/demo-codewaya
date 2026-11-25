@@ -16,6 +16,16 @@ MAX_TITLE_LENGTH = 200
 MAX_DESCRIPTION_LENGTH = 2000
 
 
+class _Unset:
+    """Sentinel distinguishing "field not provided" from "explicitly cleared"."""
+
+    def __repr__(self) -> str:
+        return "UNSET"
+
+
+UNSET: Any = _Unset()
+
+
 def validate_title(title: str) -> str:
     """Return the stripped title.
 
@@ -260,9 +270,7 @@ class TaskManager:
 
         if status == "done":
             result = [task for task in result if task.completed]
-        elif status == "pending":
-            result = [task for task in result if not task.completed]
-        elif not include_completed:
+        elif status == "pending" or not include_completed:
             result = [task for task in result if not task.completed]
 
         if contains:
@@ -308,12 +316,15 @@ class TaskManager:
         task_id: int,
         title: str | None = None,
         description: str | None = None,
-        due_date: str | None = None,
-        priority: str | None = None,
+        due_date: str | None | Any = UNSET,
+        priority: str | None | Any = UNSET,
     ) -> bool:
         """Apply the given fields to a task and persist it.
 
-        Fields left as ``None`` are not changed.
+        ``title`` and ``description`` are changed only when not ``None``.
+        ``due_date`` and ``priority`` use the ``UNSET`` sentinel so that passing
+        ``None`` or ``""`` explicitly clears the field, while omitting the
+        argument leaves it unchanged.
 
         Returns:
             ``True`` when the task was updated, ``False`` when it does not exist.
@@ -326,8 +337,6 @@ class TaskManager:
         clean_description = (
             None if description is None else validate_description(description)
         )
-        clean_due_date = validate_due_date(due_date)
-        clean_priority = validate_priority(priority)
         with self._lock:
             task = self.get_task(task_id)
             if task is None:
@@ -336,10 +345,10 @@ class TaskManager:
                 task.title = clean_title
             if clean_description is not None:
                 task.description = clean_description
-            if clean_due_date is not None:
-                task.due_date = clean_due_date
-            if clean_priority is not None:
-                task.priority = clean_priority
+            if due_date is not UNSET:
+                task.due_date = validate_due_date(due_date)
+            if priority is not UNSET:
+                task.priority = validate_priority(priority)
             self.save()
             return True
 

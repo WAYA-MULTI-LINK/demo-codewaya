@@ -6,7 +6,7 @@ import sys
 
 from formatter import format_stats, format_tasks
 from io_utils import export_tasks, import_tasks
-from task_manager import PRIORITIES, TaskManager
+from task_manager import PRIORITIES, UNSET, TaskManager
 
 
 def resolve_storage_path(path: str, base_dir: str | None = None) -> str:
@@ -26,9 +26,12 @@ def resolve_storage_path(path: str, base_dir: str | None = None) -> str:
     if not isinstance(path, str) or not path.strip():
         raise ValueError("storage file path must not be empty")
     root = os.path.realpath(base_dir or os.getcwd())
-    resolved = os.path.realpath(os.path.join(root, path))
-    if resolved != root and not resolved.startswith(root + os.sep):
-        raise ValueError(f"storage file must stay inside {root}, got {path!r}")
+    if os.path.isabs(path):
+        resolved = os.path.realpath(path)
+    else:
+        resolved = os.path.realpath(os.path.join(root, path))
+        if resolved != root and not resolved.startswith(root + os.sep):
+            raise ValueError(f"storage file must stay inside {root}, got {path!r}")
     parent = os.path.dirname(resolved)
     if not os.path.isdir(parent):
         raise ValueError(f"storage directory does not exist: {parent}")
@@ -124,8 +127,8 @@ def run_command(args: argparse.Namespace, manager: TaskManager) -> int:
             args.id,
             title=args.title,
             description=args.description,
-            due_date=args.due,
-            priority=args.priority,
+            due_date=args.due if args.due is not None else UNSET,
+            priority=args.priority if args.priority is not None else UNSET,
         )
         if not updated:
             print(f"Task {args.id} not found")

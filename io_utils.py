@@ -5,11 +5,11 @@ import json
 import os
 
 from task_manager import (
+    Task,
+    TaskManager,
     validate_due_date,
     validate_priority,
     validate_title,
-    Task,
-    TaskManager,
 )
 
 FIELDS = ["id", "title", "description", "completed", "due_date", "priority"]
