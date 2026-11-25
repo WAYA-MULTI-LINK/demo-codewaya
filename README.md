@@ -40,15 +40,33 @@ python cli.py import backup.json
 
 Tasks are persisted to `tasks.json` in the current directory (override with `--file`).
 
+## View tasks in the browser
+
+`index.html` is a dependency-free page that reads `tasks.json` and shows the same
+tasks, including a search box and a "show completed" toggle.
+
+```bash
+python cli.py add "Buy groceries" -d "Milk, eggs, bread" --due 2026-01-15 --priority high
+python -m http.server 8000     # serve this folder, then open http://localhost:8000/
+```
+
+The page must be served over HTTP — opening the file directly cannot fetch `tasks.json`
+due to browser same-origin rules.
+
 ## Project layout
 
 - `task_manager.py` — `Task` and `TaskManager` (core logic, persistence, filtering, stats)
 - `formatter.py` — human-readable formatting of tasks and stats
 - `io_utils.py` — JSON/CSV import and export
 - `cli.py` — command-line interface
+- `index.html` — static browser viewer for `tasks.json`
 
 ## Run tests
 
 ```bash
-python -m unittest discover -s tests
+python -m unittest discover -s tests -t .
 ```
+
+The US-01 acceptance criteria (unique incrementing ids, `-d/--description`,
+pending by default, immediate persistence) are covered end to end by
+`tests/test_cli_add.py`, which drives the real CLI in a temporary folder.

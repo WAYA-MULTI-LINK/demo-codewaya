@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task Checklist</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1c1f24;
+    --muted: #666e7a;
+    --border: #d8dce2;
+    --accent: #2557d6;
+    --done: #1f8a4c;
+    --warn: #b4441b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c;
+      --card: #1c2028;
+      --text: #e8eaee;
+      --muted: #9aa3b0;
+      --border: #2c313b;
+      --accent: #7ea2ff;
+      --done: #4ad07f;
+      --warn: #ff8a5c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2rem 1rem;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main {
+    max-width: 46rem;
+    margin: 0 auto;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  h1 { margin: 0 0 0.25rem; font-size: 1.4rem; }
+  .summary { margin: 0 0 1rem; color: var(--muted); font-size: 0.9rem; }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .controls input[type="search"] {
+    flex: 1 1 14rem;
+    padding: 0.5rem 0.65rem;
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .controls label { font-size: 0.9rem; color: var(--muted); }
+  .tasks { list-style: none; margin: 0; padding: 0; }
+  .task {
+    border-top: 1px solid var(--border);
+    padding: 0.75rem 0;
+  }
+  .task:first-child { border-top: none; }
+  .task-title { display: flex; gap: 0.5rem; align-items: baseline; font-weight: 600; }
+  .task-id { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+  .task.completed .task-title span:last-child { text-decoration: line-through; color: var(--muted); }
+  .task-details {
+    margin: 0.35rem 0 0;
+    padding-left: 1.75rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .badge {
+    display: inline-block;
+    margin-right: 0.5rem;
+    padding: 0.05rem 0.45rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 0.75rem;
+  }
+  .badge.done { color: var(--done); border-color: var(--done); }
+  .badge.overdue { color: var(--warn); border-color: var(--warn); }
+  .message {
+    margin: 1rem 0 0;
+    padding: 0.75rem;
+    border: 1px solid var(--warn);
+    border-radius: 8px;
+    color: var(--warn);
+    font-size: 0.9rem;
+    white-space: pre-line;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Task Checklist</h1>
+  <p id="summary" class="summary" role="status">Loading tasks&hellip;</p>
+
+  <div class="controls">
+    <input id="search" type="search" placeholder="Search title or description" aria-label="Search tasks">
+    <label><input id="show-completed" type="checkbox" checked> Show completed</label>
+  </div>
+
+  <ul id="task-list" class="tasks"></ul>
+  <p id="message" class="message" hidden></p>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_URL = "tasks.json";
+  var PRIORITIES = ["low", "medium", "high"];
+
+  var summaryEl = document.getElementById("summary");
+  var listEl = document.getElementById("task-list");
+  var messageEl = document.getElementById("message");
+  var searchEl = document.getElementById("search");
+  var showCompletedEl = document.getElementById("show-completed");
+
+  var tasks = [];
+
+  function showMessage(text) {
+    messageEl.textContent = text;
+    messageEl.hidden = false;
+  }
+
+  function clearMessage() {
+    messageEl.textContent = "";
+    messageEl.hidden = true;
+  }
+
+  function isIsoDate(value) {
+    return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  }
+
+  function normalizeTask(raw, index) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new Error("Task at position " + index + " is not an object.");
+    }
+    if (typeof raw.id !== "number" || !Number.isFinite(raw.id)) {
+      throw new Error("Task at position " + index + " has an invalid id.");
+    }
+    if (typeof raw.title !== "string" || raw.title.trim() === "") {
+      throw new Error("Task " + raw.id + " has an invalid title.");
+    }
+    return {
+      id: raw.id,
+      title: raw.title,
+      description: typeof raw.description === "string" ? raw.description : "",
+      completed: raw.completed === true,
+      dueDate: isIsoDate(raw.due_date) ? raw.due_date : null,
+      priority: PRIORITIES.indexOf(raw.priority) !== -1 ? raw.priority : null
+    };
+  }
+
+  function parseTasks(payload) {
+    if (!Array.isArray(payload)) {
+      throw new Error("tasks.json must contain a JSON array of tasks.");
+    }
+    return payload.map(normalizeTask);
+  }
+
+  function todayIso() {
+    var now = new Date();
+    var month = String(now.getMonth() + 1).padStart(2, "0");
+    var day = String(now.getDate()).padStart(2, "0");
+    return now.getFullYear() + "-" + month + "-" + day;
+  }
+
+  function isOverdue(task) {
+    return Boolean(task.dueDate) && !task.completed && task.dueDate < todayIso();
+  }
+
+  function badge(text, className) {
+    var el = document.createElement("span");
+    el.className = "badge" + (className ? " " + className : "");
+    el.textContent = text;
+    return el;
+  }
+
+  function renderTask(task) {
+    var item = document.createElement("li");
+    item.className = "task" + (task.completed ? " completed" : "");
+    item.dataset.taskId = String(task.id);
+
+    var heading = document.createElement("div");
+    heading.className = "task-title";
+
+    var idEl = document.createElement("span");
+    idEl.className = "task-id";
+    idEl.textContent = "#" + task.id;
+
+    var titleEl = document.createElement("span");
+    titleEl.textContent = task.title;
+
+    heading.appendChild(idEl);
+    heading.appendChild(titleEl);
+    item.appendChild(heading);
+
+    var details = [];
+    if (task.description) {
+      details.push(task.description);
+    }
+    if (task.priority) {
+      details.push("priority: " + task.priority);
+    }
+    if (task.dueDate) {
+      details.push("due: " + task.dueDate + (isOverdue(task) ? " (overdue)" : ""));
+    }
+
+    if (details.length > 0 || task.completed || isOverdue(task)) {
+      var detailsEl = document.createElement("p");
+      detailsEl.className = "task-details";
+      if (task.completed) {
+        detailsEl.appendChild(badge("done", "done"));
+      }
+      if (isOverdue(task)) {
+        detailsEl.appendChild(badge("overdue", "overdue"));
+      }
+      detailsEl.appendChild(document.createTextNode(details.join(" \u00b7 ")));
+      item.appendChild(detailsEl);
+    }
+
+    return item;
+  }
+
+  function visibleTasks() {
+    var needle = searchEl.value.trim().toLowerCase();
+    return tasks.filter(function (task) {
+      if (!showCompletedEl.checked && task.completed) {
+        return false;
+      }
+      if (!needle) {
+        return true;
+      }
+      return (
+        task.title.toLowerCase().indexOf(needle) !== -1 ||
+        task.description.toLowerCase().indexOf(needle) !== -1
+      );
+    });
+  }
+
+  function render() {
+    var shown = visibleTasks();
+    listEl.textContent = "";
+    shown.forEach(function (task) {
+      listEl.appendChild(renderTask(task));
+    });
+
+    var completed = tasks.filter(function (task) {
+      return task.completed;
+    }).length;
+    var overdue = tasks.filter(isOverdue).length;
+    summaryEl.textContent =
+      "Total: " + tasks.length +
+      " | Completed: " + completed +
+      " | Pending: " + (tasks.length - completed) +
+      " | Overdue: " + overdue +
+      (shown.length === tasks.length ? "" : " | Showing: " + shown.length);
+
+    if (shown.length === 0) {
+      var empty = document.createElement("li");
+      empty.className = "task";
+      empty.textContent = tasks.length === 0 ? "No tasks yet." : "No tasks match this filter.";
+      listEl.appendChild(empty);
+    }
+  }
+
+  async function load() {
+    clearMessage();
+    try {
+      var response = await fetch(STORAGE_URL, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("tasks.json returned HTTP " + response.status + ".");
+      }
+      tasks = parseTasks(await response.json());
+      render();
+    } catch (error) {
+      tasks = [];
+      listEl.textContent = "";
+      summaryEl.textContent = "No tasks loaded.";
+      showMessage(
+        "Could not read " + STORAGE_URL + ": " + error.message + "\n" +
+        "Add a task first: python cli.py add \"My task\"\n" +
+        "Then serve this folder: python -m http.server 8000"
+      );
+    }
+  }
+
+  searchEl.addEventListener("input", render);
+  showCompletedEl.addEventListener("change", render);
+  load();
+})();
+</script>
+</body>
+</html>
