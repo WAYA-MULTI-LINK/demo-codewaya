@@ -37,13 +37,21 @@ def record(name, ok, detail=""):
 
 
 def run_cli(*args):
-    """Run cli.py with the given args; return (returncode, stdout)."""
-    proc = subprocess.run(
-        [sys.executable, CLI, *args],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    """Run cli.py with the given args; return (returncode, stdout).
+
+    Uses a timeout so a hung CLI invocation cannot stall the smoke run; on
+    timeout the returncode is reported as -1 with the error text.
+    """
+    try:
+        proc = subprocess.run(
+            [sys.executable, CLI, *args],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        return -1, "CLI timed out"
     return proc.returncode, proc.stdout + proc.stderr
 
 
@@ -54,6 +62,12 @@ class Api:
         self.base = f"http://127.0.0.1:{port}"
 
     def call(self, method, path, body=None):
+        """Return ``(status, parsed_json)``; network errors become ``(0, {...})``.
+
+        Never raises: a connection error or a non-JSON body is reported as a
+        failed status so one bad request fails a single check instead of aborting
+        the whole run with a traceback.
+        """
         data = json.dumps(body).encode() if body is not None else None
         headers = {"Content-Type": "application/json"} if data else {}
         req = urllib.request.Request(
@@ -61,9 +75,16 @@ class Api:
         )
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
-                return resp.status, json.loads(resp.read().decode())
+                raw = resp.read().decode()
+                return resp.status, json.loads(raw)
         except urllib.error.HTTPError as exc:
-            return exc.code, json.loads(exc.read().decode())
+            raw = exc.read().decode()
+            try:
+                return exc.code, json.loads(raw)
+            except json.JSONDecodeError:
+                return exc.code, {"raw": raw}
+        except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
+            return 0, {"error": str(exc)}
 
 
 def smoke_cli(storage):
@@ -153,15 +174,23 @@ def smoke_api(api):
 
 def smoke_static(api):
     """Confirm the viewer page is served and arbitrary files are not."""
-    with urllib.request.urlopen(api.base + "/", timeout=10) as resp:
-        html = resp.read().decode()
-    record("Web: index.html served", resp.status == 200 and "Task Checklist" in html)
+    try:
+        with urllib.request.urlopen(api.base + "/", timeout=10) as resp:
+            html = resp.read().decode()
+            served_ok = resp.status == 200 and "Task Checklist" in html
+    except (urllib.error.URLError, OSError) as exc:
+        served_ok = False
+        print(f"  (index fetch error: {exc})")
+    record("Web: index.html served", served_ok)
 
     try:
-        urllib.request.urlopen(api.base + "/web.py", timeout=10)
-        record("Web: does not expose source", False)
+        with urllib.request.urlopen(api.base + "/web.py", timeout=10):
+            exposed = True
     except urllib.error.HTTPError as exc:
-        record("Web: does not expose source", exc.code == 404)
+        exposed = exc.code != 404
+    except (urllib.error.URLError, OSError):
+        exposed = False
+    record("Web: does not expose source", not exposed)
 
 
 def main():
@@ -171,7 +200,10 @@ def main():
     print(f"Smoke test (storage: {storage})\n")
 
     print("== CLI ==")
-    smoke_cli(storage)
+    try:
+        smoke_cli(storage)
+    except Exception as exc:  # noqa: BLE001 - report, never crash the run
+        record("CLI section completed", False, repr(exc))
 
     print("\n== HTTP API ==")
     server = make_server("127.0.0.1", 0, os.path.join(tmp, "api-tasks.json"))
@@ -180,9 +212,12 @@ def main():
     thread.start()
     api = Api(port)
     try:
-        smoke_api(api)
-        print("\n== Web ==")
-        smoke_static(api)
+        try:
+            smoke_api(api)
+            print("\n== Web ==")
+            smoke_static(api)
+        except Exception as exc:  # noqa: BLE001 - report, never crash the run
+            record("API/Web section completed", False, repr(exc))
     finally:
         server.shutdown()
         server.server_close()
