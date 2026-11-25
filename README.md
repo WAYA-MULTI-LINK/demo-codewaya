@@ -49,11 +49,33 @@ box and a "show completed" toggle. Browsers block `fetch` on `file://`, so serve
 folder over HTTP:
 
 ```bash
-python -m http.server 8000     # serve this folder, then open http://localhost:8000/
+python -m http.server 8000     # read-only: serve this folder, open http://localhost:8000/
 ```
 
 Unchecking "Show completed" hides completed tasks; an empty store shows
 "No tasks found."
+
+## Web UI + JSON API
+
+`web.py` serves the same `index.html` plus a JSON API that exposes **every** task
+operation, so each function can be exercised over HTTP:
+
+```bash
+python web.py --port 8000 --file tasks.json   # open http://localhost:8000/
+```
+
+| Method | Path                       | Purpose                                              |
+|--------|----------------------------|------------------------------------------------------|
+| GET    | `/api/tasks`               | list tasks; query `all=0`, `status=done\|pending`, `contains=<text>`, `sort=due\|priority` |
+| POST   | `/api/tasks`               | add a task: `{"title", "description?", "due_date?", "priority?"}` |
+| PATCH  | `/api/tasks/{id}`          | edit fields, or `{"completed": true/false}` to toggle |
+| PATCH  | `/api/tasks/{id}/complete` | mark done                                            |
+| PATCH  | `/api/tasks/{id}/reopen`   | mark pending again                                   |
+| DELETE | `/api/tasks/{id}`          | delete a task                                        |
+| GET    | `/api/stats`               | total / completed / pending / overdue counts         |
+
+The shared `TaskManager` is thread-safe (it owns an `RLock`), so the threaded server
+is safe under concurrency.
 
 ## Project layout
 
@@ -62,6 +84,7 @@ Unchecking "Show completed" hides completed tasks; an empty store shows
 - `io_utils.py` — JSON/CSV import and export
 - `cli.py` — command-line interface
 - `index.html` — static browser viewer for `tasks.json`
+- `web.py` — HTTP JSON API that serves `index.html`
 
 ## Run tests
 
