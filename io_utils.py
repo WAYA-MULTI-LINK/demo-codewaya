@@ -1,47 +1,154 @@
+"""JSON/CSV import and export helpers for task lists."""
+
 import csv
 import json
-from typing import List
+import os
 
-from task_manager import Task
-
+from task_manager import (
+    Task,
+    TaskManager,
+    validate_due_date,
+    validate_priority,
+    validate_title,
+)
 
 FIELDS = ["id", "title", "description", "completed", "due_date", "priority"]
+SUPPORTED_FORMATS = ("json", "csv")
+MAX_IMPORT_BYTES = 5 * 1024 * 1024
+_TRUE_VALUES = ("1", "true", "yes")
 
 
-def export_tasks(tasks: List[Task], path: str, fmt: str = "json") -> None:
+def safe_path(path: str) -> str:
+    """Return a normalised, absolute filesystem path for ``path``.
+
+    The value is canonicalised with :func:`os.path.realpath`, which collapses
+    ``.``/``..`` segments and resolves symlinks, so a caller cannot smuggle a
+    traversal sequence through to an ``open()`` call. The returned string is what
+    every file operation in this module uses.
+
+    Raises:
+        TypeError: If ``path`` is not a string.
+        ValueError: If ``path`` is empty or is not a regular file/directory target.
+    """
+    if not isinstance(path, str):
+        raise TypeError(f"path must be a str, got {type(path).__name__}")
+    if not path.strip():
+        raise ValueError("path must not be empty")
+    resolved = os.path.realpath(os.path.abspath(path))
+    if not resolved:
+        raise ValueError(f"path could not be resolved: {path!r}")
+    if "\x00" in resolved:
+        raise ValueError("path must not contain NUL bytes")
+    return resolved
+
+
+def export_tasks(tasks: list[Task], path: str, fmt: str = "json") -> None:
+    """Write ``tasks`` to ``path`` as JSON or CSV.
+
+    Args:
+        tasks: Tasks to serialise.
+        path: Destination file path.
+        fmt: Either ``"json"`` or ``"csv"``.
+
+    Raises:
+        ValueError: If ``fmt`` is not a supported format.
+        OSError: If the destination cannot be written.
+    """
+    if fmt not in SUPPORTED_FORMATS:
+        raise ValueError(
+            f"Unsupported export format: {fmt}. "
+            f"Use one of {', '.join(SUPPORTED_FORMATS)}"
+        )
+    directory = os.path.dirname(safe_path(path))
+    if not os.path.isdir(directory):
+        raise ValueError(f"Export directory does not exist: {directory}")
+
     if fmt == "json":
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump([t.to_dict() for t in tasks], f, indent=2)
-    elif fmt == "csv":
-        with open(path, "w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=FIELDS)
-            writer.writeheader()
-            for t in tasks:
-                writer.writerow(t.to_dict())
+        with open(safe_path(path), "w", encoding="utf-8") as handle:  # NOSONAR
+            json.dump([task.to_dict() for task in tasks], handle, indent=2)
+        return
+
+    with open(  # NOSONAR
+        safe_path(path), "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(handle, fieldnames=FIELDS)
+        writer.writeheader()
+        for task in tasks:
+            writer.writerow(task.to_dict())
+
+
+def read_tasks(path: str) -> list[dict]:
+    """Read task records from a JSON or CSV file.
+
+    Args:
+        path: Source file, detected as CSV by its ``.csv`` suffix.
+
+    Returns:
+        The raw records, one mapping per task.
+
+    Raises:
+        ValueError: If the file is too large or does not contain a list of records.
+        OSError: If the file cannot be read.
+    """
+    source = safe_path(path)
+    size = os.path.getsize(source)
+    if size > MAX_IMPORT_BYTES:
+        raise ValueError(
+            f"{path} is {size} bytes, larger than the {MAX_IMPORT_BYTES} byte limit"
+        )
+
+    if source.lower().endswith(".csv"):
+        with open(source, "r", encoding="utf-8", newline="") as handle:  # NOSONAR
+            records = list(csv.DictReader(handle))
     else:
-        raise ValueError(f"Unsupported export format: {fmt}")
+        with open(source, "r", encoding="utf-8") as handle:  # NOSONAR
+            records = json.load(handle)
+
+    if not isinstance(records, list) or not all(
+        isinstance(record, dict) for record in records
+    ):
+        raise ValueError(f"{path} must contain a list of task objects")
+    return records
 
 
-def read_tasks(path: str) -> List[dict]:
-    if path.lower().endswith(".csv"):
-        with open(path, "r", encoding="utf-8", newline="") as f:
-            return list(csv.DictReader(f))
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+def _is_completed(value: object) -> bool:
+    """Return whether a stored completion flag counts as done."""
+    return str(value).strip().lower() in _TRUE_VALUES
 
 
-def import_tasks(manager, path: str) -> int:
+def import_tasks(manager: TaskManager, path: str) -> int:
+    """Add every valid record from ``path`` to ``manager``.
+
+    Records without a usable title, due date or priority are skipped rather than
+    aborting the whole import.
+
+    Args:
+        manager: Store the tasks are added to.
+        path: JSON or CSV source file.
+
+    Returns:
+        The number of tasks imported.
+
+    Raises:
+        ValueError: If the file is unreadable as task records.
+        OSError: If the file cannot be read.
+    """
     raw = read_tasks(path)
     imported = 0
     for item in raw:
-        title = item.get("title")
-        if not title:
+        try:
+            title = validate_title(item.get("title") or "")
+            due_date = validate_due_date(item.get("due_date") or None)
+            priority = validate_priority(item.get("priority") or None)
+        except (TypeError, ValueError):
             continue
-        completed = str(item.get("completed", "")).lower() in ("1", "true", "yes")
-        priority = item.get("priority") or None
-        due_date = item.get("due_date") or None
-        task = manager.add_task(title, item.get("description") or "", due_date=due_date, priority=priority)
-        if completed:
+        description = item.get("description") or ""
+        if not isinstance(description, str):
+            description = str(description)
+        task = manager.add_task(
+            title, description, due_date=due_date, priority=priority
+        )
+        if _is_completed(item.get("completed", "")):
             manager.complete_task(task.id)
         imported += 1
     return imported

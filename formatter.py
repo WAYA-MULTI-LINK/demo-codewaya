@@ -1,9 +1,10 @@
-from typing import List
+"""Human-readable formatting of tasks and statistics."""
 
 from task_manager import Task
 
 
 def format_task(task: Task) -> str:
+    """Return a single-line rendering of ``task`` with status, id and details."""
     status = "[x]" if task.completed else "[ ]"
     parts = [f"{status} {task.id}. {task.title}"]
     if task.description:
@@ -19,13 +20,15 @@ def format_task(task: Task) -> str:
     return " ".join(parts)
 
 
-def format_tasks(tasks: List[Task]) -> str:
+def format_tasks(tasks: list[Task]) -> str:
+    """Return the tasks one per line, or a friendly message when there are none."""
     if not tasks:
         return "No tasks found."
-    return "\n".join(format_task(t) for t in tasks)
+    return "\n".join(format_task(task) for task in tasks)
 
 
-def format_stats(stats: dict) -> str:
+def format_stats(stats: dict[str, int]) -> str:
+    """Return a one-line summary of total, completed, pending and overdue counts."""
     return (
         f"Total: {stats['total']} | "
         f"Completed: {stats['completed']} | "

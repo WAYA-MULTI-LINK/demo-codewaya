@@ -44,12 +44,12 @@ Tasks are persisted to `tasks.json` in the current directory (override with `--f
 ## Web view
 
 `index.html` is a static, dependency-free page that renders `tasks.json` with the same
-`[x]` / `[ ]` status, id, title and description as `python cli.py list`. Browsers block
-`fetch` on `file://`, so serve the folder over HTTP:
+`[x]` / `[ ]` status, id, title and description as `python cli.py list`, plus a search
+box and a "show completed" toggle. Browsers block `fetch` on `file://`, so serve the
+folder over HTTP:
 
 ```bash
-python3 -m http.server 8000
-# then open http://localhost:8000/
+python -m http.server 8000     # serve this folder, then open http://localhost:8000/
 ```
 
 Unchecking "Show completed" hides completed tasks; an empty store shows
@@ -61,10 +61,14 @@ Unchecking "Show completed" hides completed tasks; an empty store shows
 - `formatter.py` — human-readable formatting of tasks and stats
 - `io_utils.py` — JSON/CSV import and export
 - `cli.py` — command-line interface
-- `index.html` — static web view of the task list
+- `index.html` — static browser viewer for `tasks.json`
 
 ## Run tests
 
 ```bash
-python -m unittest discover -s tests
+python -m unittest discover -s tests -t .
 ```
+
+The US-01 acceptance criteria (unique incrementing ids, `-d/--description`,
+pending by default, immediate persistence) are covered end to end by
+`tests/test_cli_add.py`, which drives the real CLI in a temporary folder.

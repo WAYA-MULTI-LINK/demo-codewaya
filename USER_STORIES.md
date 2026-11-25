@@ -23,7 +23,7 @@ Legend:
   - Optional `-d/--description` stores extra detail.
   - New tasks default to not completed.
   - Task is persisted to storage immediately.
-- **Tests:** `test_add_task`, `test_ids_not_reused`
+- **Tests:** `tests/test_cli_add.py` (US-01-AC1–AC4), `test_add_task`, `test_ids_not_reused`, `test_add_persists_immediately_and_defaults_to_pending`
 
 ### US-02 — List tasks
 **As an** individual user, **I want** to see my tasks with a clear done/not-done indicator, **so that** I know what is left to do.
