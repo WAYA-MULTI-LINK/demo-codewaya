@@ -43,7 +43,9 @@ def run_cli(*args):
     timeout the returncode is reported as -1 with the error text.
     """
     try:
-        proc = subprocess.run(
+        # Args are fixed literals from this script plus the test storage path;
+        # no untrusted input reaches the command (S603 is a false positive here).
+        proc = subprocess.run(  # noqa: S603
             [sys.executable, CLI, *args],
             capture_output=True,
             text=True,
@@ -68,13 +70,17 @@ class Api:
         failed status so one bad request fails a single check instead of aborting
         the whole run with a traceback.
         """
+        url = self.base + path
+        if not url.startswith(("http://127.0.0.1:", "http://localhost:")):
+            return 0, {"error": f"refusing non-loopback url {url!r}"}
         data = json.dumps(body).encode() if body is not None else None
         headers = {"Content-Type": "application/json"} if data else {}
-        req = urllib.request.Request(
-            self.base + path, data=data, method=method, headers=headers
+        req = urllib.request.Request(  # noqa: S310 - loopback url validated above
+            url, data=data, method=method, headers=headers
         )
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            # url is validated to be http://127.0.0.1 or http://localhost above.
+            with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
                 raw = resp.read().decode()
                 return resp.status, json.loads(raw)
         except urllib.error.HTTPError as exc:
@@ -175,7 +181,9 @@ def smoke_api(api):
 def smoke_static(api):
     """Confirm the viewer page is served and arbitrary files are not."""
     try:
-        with urllib.request.urlopen(api.base + "/", timeout=10) as resp:
+        with urllib.request.urlopen(  # noqa: S310 - loopback URL built from port
+            api.base + "/", timeout=10
+        ) as resp:
             html = resp.read().decode()
             served_ok = resp.status == 200 and "Task Checklist" in html
     except (urllib.error.URLError, OSError) as exc:
@@ -184,7 +192,9 @@ def smoke_static(api):
     record("Web: index.html served", served_ok)
 
     try:
-        with urllib.request.urlopen(api.base + "/web.py", timeout=10):
+        with urllib.request.urlopen(  # noqa: S310 - loopback URL built from port
+            api.base + "/web.py", timeout=10
+        ):
             exposed = True
     except urllib.error.HTTPError as exc:
         exposed = exc.code != 404
