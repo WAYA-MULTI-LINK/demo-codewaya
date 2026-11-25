@@ -414,7 +414,9 @@ class TaskManager:
             if not os.path.exists(self.storage_file):
                 return
             try:
-                with open(self.storage_file, "r", encoding="utf-8") as handle:  # NOSONAR
+                with open(  # NOSONAR - storage_file is canonicalised in __init__
+                    self.storage_file, "r", encoding="utf-8"
+                ) as handle:
                     data = json.load(handle)
             except (json.JSONDecodeError, OSError, UnicodeDecodeError):
                 return

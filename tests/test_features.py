@@ -68,6 +68,7 @@ class TestTaskFeatures(unittest.TestCase):
 
     def test_backward_compatible_load(self):
         import json
+
         with open(self.tmp.name, "w", encoding="utf-8") as f:
             json.dump(
                 [{"id": 1, "title": "Old", "description": "", "completed": False}],
