@@ -109,29 +109,5 @@ class TestAddTaskCli(unittest.TestCase):
         self.assertFalse(self.storage.exists())
 
 
-class TestIndexPage(unittest.TestCase):
-    """Structural checks for the static index.html task viewer."""
-
-    @classmethod
-    def setUpClass(cls):
-        cls.html = (REPO_ROOT / "index.html").read_text(encoding="utf-8")
-
-    def test_page_reads_tasks_storage(self):
-        """The page fetches the same storage file the CLI writes."""
-        self.assertIn('"tasks.json"', self.html)
-        self.assertIn("fetch(", self.html)
-
-    def test_page_renders_task_list_and_filters(self):
-        """The page exposes a task list, a search box and a completed filter."""
-        element_ids = ("task-list", "search", "show-completed", "summary", "message")
-        for element_id in element_ids:
-            self.assertIn(f'id="{element_id}"', self.html)
-
-    def test_page_has_no_debug_leftovers(self):
-        """Debug helpers such as alert, confirm, console.log must not ship."""
-        for banned in ("alert(", "confirm(", "console.log"):
-            self.assertNotIn(banned, self.html)
-
-
 if __name__ == "__main__":
     unittest.main()

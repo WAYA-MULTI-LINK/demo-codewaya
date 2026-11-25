@@ -51,7 +51,9 @@ def build_parser() -> argparse.ArgumentParser:
     add_p.add_argument("--due", help="Due date (YYYY-MM-DD)")
     add_p.add_argument("--priority", choices=PRIORITIES, help="Task priority")
 
-    list_p = sub.add_parser("list", help="List tasks")
+    list_p = sub.add_parser(
+        "list", aliases=["index"], help="List tasks (alias: index)"
+    )
     list_p.add_argument(
         "-a", "--all", action="store_true", help="Include completed tasks"
     )
@@ -103,7 +105,7 @@ def run_command(args: argparse.Namespace, manager: TaskManager) -> int:
             args.title, args.description, due_date=args.due, priority=args.priority
         )
         print(f"Added task {task.id}: {task.title}")
-    elif args.command == "list":
+    elif args.command in ("list", "index"):
         status = "done" if args.done else "pending" if args.pending else None
         tasks = manager.list_tasks(
             include_completed=args.all,
