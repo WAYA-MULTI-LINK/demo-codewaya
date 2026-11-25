@@ -69,48 +69,56 @@ Legend:
 
 ---
 
-## Planned / Backlog
+## Extended Features
 
 ### US-07 — Reopen a completed task
 **As an** individual user, **I want** to mark a completed task as not done again, **so that** I can correct mistakes or repeat a recurring item.
-- **Status:** Planned · **Priority:** Should
+- **Status:** Done · **Priority:** Should
 - **Acceptance criteria:**
   - `python cli.py reopen <id>` sets `completed = False` and persists it.
+  - An unknown id reports an error and exits with a non-zero code.
+- **Tests:** `test_reopen_task`
 
 ### US-08 — Edit a task
-**As an** individual user, **I want** to update a task's title or description, **so that** I can fix typos or add detail.
-- **Status:** Planned · **Priority:** Should
+**As an** individual user, **I want** to update a task's title, description, due date or priority, **so that** I can fix typos or add detail.
+- **Status:** Done · **Priority:** Should
 - **Acceptance criteria:**
-  - `python cli.py edit <id> [--title ...] [--description ...]` updates fields and persists.
+  - `python cli.py edit <id> [--title ...] [--description ...] [--due ...] [--priority ...]` updates fields and persists.
   - Unknown id reports an error with non-zero exit code.
+- **Tests:** `test_edit_task`
 
 ### US-09 — Search and filter tasks
 **As an** individual user, **I want** to filter tasks by text or status, **so that** I can find items in a long list quickly.
-- **Status:** Planned · **Priority:** Could
+- **Status:** Done · **Priority:** Could
 - **Acceptance criteria:**
   - `python cli.py list --contains <text>` filters by title/description.
   - `python cli.py list --done` / `--pending` filter by completion status.
+- **Tests:** `test_search_contains`, `test_filter_by_status`
 
 ### US-10 — Task statistics
-**As an** individual user, **I want** a summary of total vs. completed tasks, **so that** I can gauge overall progress.
-- **Status:** Planned · **Priority:** Could
+**As an** individual user, **I want** a summary of total vs. completed vs. pending vs. overdue tasks, **so that** I can gauge overall progress.
+- **Status:** Done · **Priority:** Could
 - **Acceptance criteria:**
-  - `python cli.py stats` prints counts of total, completed, and pending tasks.
+  - `python cli.py stats` prints counts of total, completed, pending, and overdue tasks.
+- **Tests:** `test_stats_and_overdue`
 
 ### US-11 — Due dates and priorities
 **As an** individual user, **I want** to assign a due date and priority to tasks, **so that** I can order my work.
-- **Status:** Planned · **Priority:** Could
+- **Status:** Done · **Priority:** Could
 - **Acceptance criteria:**
-  - Tasks may carry `due_date` and `priority` (low/medium/high).
-  - `python cli.py list` can sort by due date and/or priority.
+  - Tasks may carry `due_date` (YYYY-MM-DD) and `priority` (low/medium/high).
+  - `python cli.py list --sort due` and `--sort priority` order the list.
+  - Past-due, incomplete tasks are flagged as OVERDUE.
   - Persisted in `tasks.json` and backward-compatible with existing files.
+- **Tests:** `test_sort_by_priority`, `test_stats_and_overdue`, `test_backward_compatible_load`
 
 ### US-12 — Import/export
 **As a** demo/codewaya tester, **I want** to export/import tasks as JSON/CSV, **so that** I can move data between environments and share fixtures.
-- **Status:** Planned · **Priority:** Could
+- **Status:** Done · **Priority:** Could
 - **Acceptance criteria:**
   - `python cli.py export --format json|csv --out <path>`.
-  - `python cli.py import <path>` merges tasks and preserves unique ids.
+  - `python cli.py import <path>` adds tasks from a JSON/CSV file.
+- **Tests:** `test_json_export_import`, `test_csv_export_import`
 
 ---
 
@@ -124,9 +132,9 @@ Legend:
 | US-04 | Delete task       | Done    | test_delete_task                        |
 | US-05 | Persistence       | Done    | test_persistence, test_ids_not_reused   |
 | US-06 | Custom storage    | Done    | (via TaskManager(storage_file=...))     |
-| US-07 | Reopen task       | Planned | —                                        |
-| US-08 | Edit task         | Planned | —                                        |
-| US-09 | Search/filter     | Planned | —                                        |
-| US-10 | Statistics        | Planned | —                                        |
-| US-11 | Due dates/priority| Planned | —                                        |
-| US-12 | Import/export     | Planned | —                                        |
+| US-07 | Reopen task       | Done    | test_reopen_task                        |
+| US-08 | Edit task         | Done    | test_edit_task                          |
+| US-09 | Search/filter     | Done    | test_search_contains, test_filter_by_status |
+| US-10 | Statistics        | Done    | test_stats_and_overdue                  |
+| US-11 | Due dates/priority| Done    | test_sort_by_priority, test_backward_compatible_load |
+| US-12 | Import/export     | Done    | test_json_export_import, test_csv_export_import |

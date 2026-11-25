@@ -10,23 +10,42 @@ No third-party dependencies.
 ## Usage
 
 ```bash
-# Add a task
-python cli.py add "Buy groceries" -d "Milk, eggs, bread"
+# Add a task (optionally with description, due date, priority)
+python cli.py add "Buy groceries" -d "Milk, eggs, bread" --due 2026-01-15 --priority high
 
-# List tasks (all, including completed)
-python cli.py list --all
+# List tasks
+python cli.py list                 # pending only
+python cli.py list --all           # include completed
+python cli.py list --done          # only completed
+python cli.py list --pending       # only pending
+python cli.py list --contains milk # search title/description
+python cli.py list --sort priority # or --sort due
 
-# List only incomplete tasks
-python cli.py list
-
-# Mark a task done
+# Mark / reopen / edit
 python cli.py done 1
+python cli.py reopen 1
+python cli.py edit 1 --title "New title" --priority low
 
-# Delete a task
+# Delete
 python cli.py delete 1
+
+# Statistics
+python cli.py stats
+
+# Import / export
+python cli.py export --format json --out backup.json
+python cli.py export --format csv --out backup.csv
+python cli.py import backup.json
 ```
 
-Tasks are persisted to `tasks.json` in the current directory.
+Tasks are persisted to `tasks.json` in the current directory (override with `--file`).
+
+## Project layout
+
+- `task_manager.py` — `Task` and `TaskManager` (core logic, persistence, filtering, stats)
+- `formatter.py` — human-readable formatting of tasks and stats
+- `io_utils.py` — JSON/CSV import and export
+- `cli.py` — command-line interface
 
 ## Run tests
 
