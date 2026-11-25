@@ -15,6 +15,7 @@ python cli.py add "Buy groceries" -d "Milk, eggs, bread" --due 2026-01-15 --prio
 
 # List tasks
 python cli.py list                 # pending only
+python cli.py index                # alias for list
 python cli.py list --all           # include completed
 python cli.py list --done          # only completed
 python cli.py list --pending       # only pending
@@ -40,12 +41,27 @@ python cli.py import backup.json
 
 Tasks are persisted to `tasks.json` in the current directory (override with `--file`).
 
+## Web view
+
+`index.html` is a static, dependency-free page that renders `tasks.json` with the same
+`[x]` / `[ ]` status, id, title and description as `python cli.py list`. Browsers block
+`fetch` on `file://`, so serve the folder over HTTP:
+
+```bash
+python3 -m http.server 8000
+# then open http://localhost:8000/
+```
+
+Unchecking "Show completed" hides completed tasks; an empty store shows
+"No tasks found."
+
 ## Project layout
 
 - `task_manager.py` — `Task` and `TaskManager` (core logic, persistence, filtering, stats)
 - `formatter.py` — human-readable formatting of tasks and stats
 - `io_utils.py` — JSON/CSV import and export
 - `cli.py` — command-line interface
+- `index.html` — static web view of the task list
 
 ## Run tests
 
