@@ -9,28 +9,51 @@ from io_utils import export_tasks, import_tasks
 from task_manager import PRIORITIES, UNSET, TaskManager
 
 
+def _is_within(candidate: str, root: str) -> bool:
+    """Return whether ``candidate`` is ``root`` itself or lives beneath it.
+
+    Uses :func:`os.path.commonpath`, which compares path components rather than
+    string prefixes, so sibling paths that merely share a prefix (``/data`` vs
+    ``/data-other``) are not treated as contained. Root is handled correctly:
+    every absolute path is inside ``/`` on POSIX.
+    """
+    try:
+        return os.path.commonpath([os.path.realpath(candidate), root]) == root
+    except ValueError:
+        return False
+
+
 def resolve_storage_path(path: str, base_dir: str | None = None) -> str:
-    """Resolve the user-supplied storage path and keep it inside ``base_dir``.
+    """Resolve the user-supplied storage path.
+
+    Absolute paths are honoured as an explicit user choice; relative paths are
+    resolved against ``base_dir`` and must stay inside it, so a relative value
+    such as ``../secrets.json`` cannot escape. In both cases the parent directory
+    must already exist.
 
     Args:
         path: Storage file path given on the command line.
-        base_dir: Folder the file must live in; defaults to the current directory.
+        base_dir: Folder relative paths resolve against; defaults to the
+            current directory.
 
     Returns:
         The absolute, symlink-free path to the storage file.
 
     Raises:
-        ValueError: If the path is empty, escapes ``base_dir``, or its parent
-            directory does not exist.
+        TypeError: If ``path`` is not a string.
+        ValueError: If the path is empty, a relative path escapes ``base_dir``,
+            or the parent directory does not exist.
     """
-    if not isinstance(path, str) or not path.strip():
+    if not isinstance(path, str):
+        raise TypeError(f"storage file path must be a str, got {type(path).__name__}")
+    if not path.strip():
         raise ValueError("storage file path must not be empty")
     root = os.path.realpath(base_dir or os.getcwd())
     if os.path.isabs(path):
         resolved = os.path.realpath(path)
     else:
         resolved = os.path.realpath(os.path.join(root, path))
-        if resolved != root and not resolved.startswith(root + os.sep):
+        if not _is_within(resolved, root):
             raise ValueError(f"storage file must stay inside {root}, got {path!r}")
     parent = os.path.dirname(resolved)
     if not os.path.isdir(parent):
