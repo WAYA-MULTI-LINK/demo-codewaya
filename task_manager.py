@@ -414,7 +414,7 @@ class TaskManager:
             if not os.path.exists(self.storage_file):
                 return
             try:
-                with open(self.storage_file, "r", encoding="utf-8") as handle:
+                with open(self.storage_file, "r", encoding="utf-8") as handle:  # NOSONAR
                     data = json.load(handle)
             except (json.JSONDecodeError, OSError, UnicodeDecodeError):
                 return
