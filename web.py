@@ -97,7 +97,8 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
         with open(full, "rb") as handle:
             body = handle.read()
         self.send_response(200)
-        self.send_header("Content-Type", CONTENT_TYPES.get(ext, "application/octet-stream"))
+        content_type = CONTENT_TYPES.get(ext, "application/octet-stream")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-cache, must-revalidate")
         self.end_headers()
@@ -118,7 +119,7 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
         self._serve_static(parsed.path)
 
     def _handle_list(self, query: dict) -> None:
-        """List tasks applying the ``all``/``status``/``contains``/``sort`` query args."""
+        """List tasks applying the ``all``/``status``/``contains``/``sort`` args."""
         status = query.get("status", [None])[0]
         contains = query.get("contains", [None])[0]
         sort = query.get("sort", [None])[0]
@@ -254,7 +255,9 @@ class TaskRequestHandler(BaseHTTPRequestHandler):
         self._send_json({"deleted": True})
 
 
-def make_server(host: str = "127.0.0.1", port: int = 8000, storage_file: str = "tasks.json"):
+def make_server(
+    host: str = "127.0.0.1", port: int = 8000, storage_file: str = "tasks.json"
+):
     """Return a threaded HTTP server bound to a fresh ``TaskManager``."""
     handler = type(
         "BoundTaskRequestHandler",
@@ -266,7 +269,9 @@ def make_server(host: str = "127.0.0.1", port: int = 8000, storage_file: str = "
 
 def main(argv: list[str] | None = None) -> None:
     """Parse arguments and serve until interrupted."""
-    parser = argparse.ArgumentParser(description="Web UI and JSON API for the task checklist")
+    parser = argparse.ArgumentParser(
+        description="Web UI and JSON API for the task checklist"
+    )
     parser.add_argument("--host", default="127.0.0.1", help="Bind address")
     parser.add_argument("--port", type=int, default=8000, help="Port to listen on")
     parser.add_argument("--file", default="tasks.json", help="Storage file path")

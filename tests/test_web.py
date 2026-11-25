@@ -39,7 +39,9 @@ class ApiTestCase(unittest.TestCase):
         if body is not None:
             data = json.dumps(body).encode("utf-8")
             headers["Content-Type"] = "application/json"
-        req = urllib.request.Request(self.url(path), data=data, method=method, headers=headers)
+        req = urllib.request.Request(
+            self.url(path), data=data, method=method, headers=headers
+        )
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 return resp.status, json.loads(resp.read().decode("utf-8"))
@@ -51,7 +53,9 @@ class ApiTestCase(unittest.TestCase):
             self.request("DELETE", f"/api/tasks/{task['id']}")
 
     def test_add_and_list(self):
-        status, task = self.request("POST", "/api/tasks", {"title": "Buy milk", "priority": "high"})
+        status, task = self.request(
+            "POST", "/api/tasks", {"title": "Buy milk", "priority": "high"}
+        )
         self.assertEqual(status, 201)
         self.assertEqual(task["title"], "Buy milk")
         self.assertEqual(task["priority"], "high")
@@ -75,14 +79,20 @@ class ApiTestCase(unittest.TestCase):
 
     def test_patch_completed_boolean(self):
         _, task = self.request("POST", "/api/tasks", {"title": "Read"})
-        status, done = self.request("PATCH", f"/api/tasks/{task['id']}", {"completed": True})
+        status, done = self.request(
+            "PATCH", f"/api/tasks/{task['id']}", {"completed": True}
+        )
         self.assertEqual(status, 200)
         self.assertTrue(done["completed"])
-        status, body = self.request("PATCH", f"/api/tasks/{task['id']}", {"completed": "yes"})
+        status, body = self.request(
+            "PATCH", f"/api/tasks/{task['id']}", {"completed": "yes"}
+        )
         self.assertEqual(status, 400)
 
     def test_edit_fields_and_clear(self):
-        _, task = self.request("POST", "/api/tasks", {"title": "Old", "due_date": "2026-01-01"})
+        _, task = self.request(
+            "POST", "/api/tasks", {"title": "Old", "due_date": "2026-01-01"}
+        )
         status, edited = self.request(
             "PATCH", f"/api/tasks/{task['id']}", {"title": "New", "due_date": ""}
         )
@@ -92,7 +102,9 @@ class ApiTestCase(unittest.TestCase):
 
     def test_filters_and_sort(self):
         self.request("POST", "/api/tasks", {"title": "Alpha", "priority": "low"})
-        _, beta = self.request("POST", "/api/tasks", {"title": "Beta", "priority": "high"})
+        _, beta = self.request(
+            "POST", "/api/tasks", {"title": "Beta", "priority": "high"}
+        )
         self.request("PATCH", f"/api/tasks/{beta['id']}/complete")
         status, pending = self.request("GET", "/api/tasks?status=pending")
         self.assertEqual(status, 200)
