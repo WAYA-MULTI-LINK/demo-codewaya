@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Task Checklist</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f7f9;
+      --card: #ffffff;
+      --text: #1c1c1e;
+      --muted: #6b6b70;
+      --accent: #2f6feb;
+      --done: #1f8f4e;
+      --border: #e3e3e8;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #141416;
+        --card: #1d1d21;
+        --text: #f2f2f5;
+        --muted: #9a9aa2;
+        --border: #2c2c31;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 2rem 1rem 3rem;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 44rem; margin: 0 auto; }
+    header h1 { margin: 0 0 0.25rem; font-size: 1.6rem; }
+    header p { margin: 0 0 1.5rem; color: var(--muted); }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .controls label { display: flex; align-items: center; gap: 0.4rem; color: var(--muted); }
+    .summary { margin-left: auto; color: var(--muted); font-size: 0.9rem; }
+    ul#task-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 0.6rem;
+    }
+    li.task {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.15rem 0.75rem;
+      padding: 0.75rem 0.9rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.6rem;
+    }
+    .status { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); }
+    li.task.is-done .status { color: var(--done); }
+    li.task.is-done .title { color: var(--muted); text-decoration: line-through; }
+    .task-id { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .description { grid-column: 2; color: var(--muted); font-size: 0.92rem; }
+    .description:empty { display: none; }
+    #empty-state {
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--muted);
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: 0.6rem;
+    }
+    #empty-state[hidden] { display: none; }
+    #error-state { margin-top: 1rem; color: #c0392b; font-size: 0.9rem; }
+    #error-state[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Task Checklist</h1>
+      <p>Read-only view of <code>tasks.json</code> from the task checklist CLI.</p>
+    </header>
+
+    <div class="controls">
+      <label>
+        <input type="checkbox" id="show-completed" checked>
+        Show completed
+      </label>
+      <span class="summary" id="summary"></span>
+    </div>
+
+    <ul id="task-list"></ul>
+    <p id="empty-state">No tasks found.</p>
+    <p id="error-state" role="alert" hidden></p>
+
+    <noscript>
+      <p>This page needs JavaScript to display tasks. Use <code>python cli.py list</code> instead.</p>
+    </noscript>
+  </main>
+
+  <script>
+    "use strict";
+
+    const STORAGE_URL = "tasks.json";
+
+    /**
+     * Build the list item for one task.
+     * @param {{id: number|string, title: string, description?: string, completed?: boolean}} task
+     * @returns {HTMLLIElement} list item showing status, id, title and description.
+     */
+    function createTaskItem(task) {
+      const done = Boolean(task.completed);
+      const item = document.createElement("li");
+      item.className = done ? "task is-done" : "task";
+
+      const status = document.createElement("span");
+      status.className = "status";
+      status.textContent = done ? "[x]" : "[ ]";
+
+      const title = document.createElement("span");
+      title.className = "title";
+      title.textContent = `${String(task.id)}. ${String(task.title ?? "")}`;
+
+      const description = document.createElement("span");
+      description.className = "description";
+      description.textContent = String(task.description ?? "").trim();
+
+      item.append(status, title, description);
+      return item;
+    }
+
+    /**
+     * Draw the visible tasks, honouring the "show completed" toggle.
+     * @param {Array<object>} tasks tasks loaded from storage.
+     * @param {boolean} showCompleted whether completed tasks are listed.
+     * @returns {void}
+     */
+    function render(tasks, showCompleted) {
+      const list = document.getElementById("task-list");
+      const empty = document.getElementById("empty-state");
+      const summary = document.getElementById("summary");
+
+      const completed = tasks.filter((task) => Boolean(task.completed)).length;
+      const visible = showCompleted ? tasks : tasks.filter((task) => !task.completed);
+
+      list.replaceChildren(...visible.map(createTaskItem));
+      empty.hidden = visible.length > 0;
+      summary.textContent = tasks.length
+        ? `${completed} of ${tasks.length} completed`
+        : "";
+    }
+
+    /**
+     * Read tasks from storage and render them.
+     * @returns {Promise<void>} resolves once the page has been updated.
+     */
+    async function load() {
+      const error = document.getElementById("error-state");
+      const toggle = document.getElementById("show-completed");
+      let tasks = [];
+
+      try {
+        const response = await fetch(STORAGE_URL, { cache: "no-store" });
+        if (response.ok) {
+          const data = await response.json();
+          tasks = Array.isArray(data) ? data : [];
+        }
+      } catch (cause) {
+        error.textContent = `Could not load ${STORAGE_URL}: ${cause.message}. Serve this page over HTTP from the tasks folder.`;
+        error.hidden = false;
+      }
+
+      render(tasks, toggle.checked);
+      toggle.addEventListener("change", () => render(tasks, toggle.checked));
+    }
+
+    load();
+  </script>
+</body>
+</html>

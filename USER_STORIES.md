@@ -33,7 +33,7 @@ Legend:
   - `python cli.py list --all` shows all tasks.
   - Each line shows status (`[x]`/`[ ]`), id, title, and description when present.
   - Empty list prints a friendly "No tasks found." message.
-- **Tests:** `test_list_incomplete`
+- **Tests:** `test_list_incomplete`, `test_cli_list`
 
 ### US-03 — Mark a task complete
 **As an** individual user, **I want** to mark a task as completed, **so that** I can track progress.

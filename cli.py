@@ -7,6 +7,11 @@ from io_utils import export_tasks, import_tasks
 
 
 def main():
+    """Parse command-line arguments and dispatch to the matching task command.
+
+    Commands write their result to stdout and exit non-zero when a referenced
+    task id does not exist. Accepts no arguments directly; reads ``sys.argv``.
+    """
     parser = argparse.ArgumentParser(description="Simple task checklist manager")
     parser.add_argument("--file", default="tasks.json", help="Storage file path")
 
@@ -18,7 +23,9 @@ def main():
     add_p.add_argument("--due", help="Due date (YYYY-MM-DD)")
     add_p.add_argument("--priority", choices=PRIORITIES, help="Task priority")
 
-    list_p = sub.add_parser("list", help="List tasks")
+    list_p = sub.add_parser(
+        "list", aliases=["index"], help="List tasks (alias: index)"
+    )
     list_p.add_argument("-a", "--all", action="store_true", help="Include completed tasks")
     list_p.add_argument("--contains", help="Filter by text in title/description")
     list_p.add_argument("--done", action="store_true", help="Only completed tasks")
@@ -58,7 +65,7 @@ def main():
             args.title, args.description, due_date=args.due, priority=args.priority
         )
         print(f"Added task {task.id}: {task.title}")
-    elif args.command == "list":
+    elif args.command in ("list", "index"):
         status = "done" if args.done else "pending" if args.pending else None
         tasks = manager.list_tasks(
             include_completed=args.all,
