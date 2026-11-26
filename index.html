@@ -108,9 +108,7 @@
     </noscript>
   </main>
 
-  <script>
-    "use strict";
-
+  <script type="module">
     const STORAGE_URL = "tasks.json";
     const TASKS_API = "/api/tasks";
     const BRANCHES_API = "/api/branches";
@@ -213,6 +211,10 @@
           }
         }
       } catch (cause) {
+        // Branch list is optional; fall back to the default branch but surface why.
+        const error = document.getElementById("error-state");
+        error.textContent = `Could not load branches: ${cause.message}. Showing ${DEFAULT_BRANCH}.`;
+        error.hidden = false;
         branches = [DEFAULT_BRANCH];
       }
 
@@ -231,7 +233,7 @@
       await loadBranch(select.value || DEFAULT_BRANCH);
     }
 
-    init();
+    await init();
   </script>
 </body>
 </html>
