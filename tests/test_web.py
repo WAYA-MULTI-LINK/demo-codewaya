@@ -1,7 +1,6 @@
 """End-to-end tests for the HTTP JSON API in web.py."""
 
 import json
-import os
 import tempfile
 import threading
 import unittest
@@ -11,14 +10,13 @@ import urllib.request
 from web import make_server
 
 
-class ApiTestCase(unittest.TestCase):
-    """Boot a real server on an ephemeral port backed by a temp storage file."""
+class ServerTestBase(unittest.TestCase):
+    """Boot a real server on an ephemeral port backed by a temp directory."""
 
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
-        cls.storage = os.path.join(cls.tmp.name, "tasks.json")
-        cls.server = make_server("127.0.0.1", 0, cls.storage)
+        cls.server = make_server("127.0.0.1", 0, cls.tmp.name)
         cls.port = cls.server.server_address[1]
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
@@ -47,6 +45,10 @@ class ApiTestCase(unittest.TestCase):
                 return resp.status, json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             return exc.code, json.loads(exc.read().decode("utf-8"))
+
+
+class ApiTestCase(ServerTestBase):
+    """Exercise the core JSON task API."""
 
     def setUp(self):
         for task in self.request("GET", "/api/tasks")[1]:
@@ -150,6 +152,52 @@ class ApiTestCase(unittest.TestCase):
                     self.assertEqual(resp.status, 404, path)
             except urllib.error.HTTPError as exc:
                 self.assertEqual(exc.code, 404, path)
+
+
+class BranchSelectorTestCase(ServerTestBase):
+    """Branch selection: each branch has an isolated task list."""
+
+    def test_branches_endpoint_lists_default(self):
+        status, branches = self.request("GET", "/api/branches")
+        self.assertEqual(status, 200)
+        self.assertIn("main", branches)
+
+    def test_branches_are_isolated(self):
+        self.request("POST", "/api/tasks?branch=alpha", {"title": "Alpha task"})
+        self.request("POST", "/api/tasks?branch=beta", {"title": "Beta task"})
+
+        _, alpha = self.request("GET", "/api/tasks?branch=alpha")
+        _, beta = self.request("GET", "/api/tasks?branch=beta")
+        self.assertEqual([t["title"] for t in alpha], ["Alpha task"])
+        self.assertEqual([t["title"] for t in beta], ["Beta task"])
+
+        _, branches = self.request("GET", "/api/branches")
+        self.assertIn("alpha", branches)
+        self.assertIn("beta", branches)
+
+    def test_complete_on_one_branch_does_not_affect_other(self):
+        self.request("POST", "/api/tasks?branch=one", {"title": "Shared id"})
+        self.request("POST", "/api/tasks?branch=two", {"title": "Shared id"})
+        self.request("PATCH", "/api/tasks/1/complete?branch=one")
+        _, one = self.request("GET", "/api/tasks?branch=one")
+        _, two = self.request("GET", "/api/tasks?branch=two")
+        self.assertTrue(one[0]["completed"])
+        self.assertFalse(two[0]["completed"])
+
+    def test_default_branch_when_omitted(self):
+        self.request("POST", "/api/tasks", {"title": "Default branch task"})
+        _, tasks = self.request("GET", "/api/tasks")
+        self.assertTrue(any(t["title"] == "Default branch task" for t in tasks))
+
+    def test_invalid_branch_rejected(self):
+        status, body = self.request("GET", "/api/tasks?branch=../etc")
+        self.assertEqual(status, 400)
+        self.assertIn("error", body)
+
+    def test_branch_names_are_case_insensitive(self):
+        self.request("POST", "/api/tasks?branch=CaseTest", {"title": "Mixed case"})
+        _, lower = self.request("GET", "/api/tasks?branch=casetest")
+        self.assertEqual([t["title"] for t in lower], ["Mixed case"])
 
 
 if __name__ == "__main__":

@@ -61,11 +61,12 @@ Unchecking "Show completed" hides completed tasks; an empty store shows
 operation, so each function can be exercised over HTTP:
 
 ```bash
-python web.py --port 8000 --file tasks.json   # open http://localhost:8000/
+python web.py --port 8000 --dir .   # open http://localhost:8000/
 ```
 
 | Method | Path                       | Purpose                                              |
 |--------|----------------------------|------------------------------------------------------|
+| GET    | `/api/branches`            | list available branches                              |
 | GET    | `/api/tasks`               | list tasks; query `all=0`, `status=done\|pending`, `contains=<text>`, `sort=due\|priority` |
 | POST   | `/api/tasks`               | add a task: `{"title", "description?", "due_date?", "priority?"}` |
 | PATCH  | `/api/tasks/{id}`          | edit fields, or `{"completed": true/false}` to toggle |
@@ -73,6 +74,22 @@ python web.py --port 8000 --file tasks.json   # open http://localhost:8000/
 | PATCH  | `/api/tasks/{id}/reopen`   | mark pending again                                   |
 | DELETE | `/api/tasks/{id}`          | delete a task                                        |
 | GET    | `/api/stats`               | total / completed / pending / overdue counts         |
+
+### Branch selector
+
+The web UI has a **branch dropdown**. Each branch is an isolated task list stored in
+its own file under `--dir`:
+
+- `main` (default) → `tasks.json`
+- `<branch>` → `tasks-<branch>.json`
+
+Every API endpoint accepts `?branch=<name>` to read/write that branch (defaults to
+`main`); invalid names are rejected with `400`. Each branch is backed by its own
+thread-safe `TaskManager`.
+
+```bash
+curl 'http://localhost:8000/api/tasks?branch=feature-x'
+```
 
 The shared `TaskManager` is thread-safe (it owns an `RLock`), so the threaded server
 is safe under concurrency.
@@ -83,7 +100,8 @@ is safe under concurrency.
 - `formatter.py` — human-readable formatting of tasks and stats
 - `io_utils.py` — JSON/CSV import and export
 - `cli.py` — command-line interface
-- `index.html` — static browser viewer for `tasks.json`
+- `branches.py` — per-branch storage + registry for the web branch selector
+- `index.html` — browser viewer with branch selector
 - `web.py` — HTTP JSON API that serves `index.html`
 
 ## Run tests

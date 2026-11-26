@@ -89,6 +89,10 @@
 
     <div class="controls">
       <label>
+        Branch
+        <select id="branch-select"></select>
+      </label>
+      <label>
         <input type="checkbox" id="show-completed" checked>
         Show completed
       </label>
@@ -104,13 +108,14 @@
     </noscript>
   </main>
 
-  <script>
-    "use strict";
-
+  <script type="module">
     const STORAGE_URL = "tasks.json";
+    const TASKS_API = "/api/tasks";
+    const BRANCHES_API = "/api/branches";
+    const DEFAULT_BRANCH = "main";
 
     /**
-     * Build the list item for one task.
+     * Build a list item for one task.
      * @param {{id: number|string, title: string, description?: string, completed?: boolean}} task
      * @returns {HTMLLIElement} list item showing status, id, title and description.
      */
@@ -156,31 +161,79 @@
         : "";
     }
 
+    /** @type {Array<object>} tasks for the currently selected branch. */
+    let currentTasks = [];
+
     /**
-     * Read tasks from storage and render them.
+     * Load the task list for a branch from the JSON API and render it.
+     * @param {string} branch branch name to load.
      * @returns {Promise<void>} resolves once the page has been updated.
      */
-    async function load() {
+    async function loadBranch(branch) {
       const error = document.getElementById("error-state");
       const toggle = document.getElementById("show-completed");
-      let tasks = [];
+      error.hidden = true;
+      currentTasks = [];
 
       try {
-        const response = await fetch(STORAGE_URL, { cache: "no-store" });
+        const url = `${TASKS_API}?branch=${encodeURIComponent(branch)}`;
+        const response = await fetch(url, { cache: "no-store" });
         if (response.ok) {
           const data = await response.json();
-          tasks = Array.isArray(data) ? data : [];
+          currentTasks = Array.isArray(data) ? data : [];
+        } else {
+          error.textContent = `Could not load branch ${branch} (HTTP ${response.status}).`;
+          error.hidden = false;
         }
       } catch (cause) {
-        error.textContent = `Could not load ${STORAGE_URL}: ${cause.message}. Serve this page over HTTP from the tasks folder.`;
+        error.textContent = `Could not load branch ${branch}: ${cause.message}.`;
         error.hidden = false;
       }
 
-      render(tasks, toggle.checked);
-      toggle.addEventListener("change", () => render(tasks, toggle.checked));
+      render(currentTasks, toggle.checked);
     }
 
-    load();
+    /**
+     * Populate the branch selector and wire up change/refresh handlers.
+     * @returns {Promise<void>} resolves once the initial branch has rendered.
+     */
+    async function init() {
+      const select = document.getElementById("branch-select");
+      const toggle = document.getElementById("show-completed");
+
+      let branches = [DEFAULT_BRANCH];
+      try {
+        const response = await fetch(BRANCHES_API, { cache: "no-store" });
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data) && data.length) {
+            branches = data;
+          }
+        }
+      } catch (cause) {
+        // Branch list is optional; fall back to the default branch but surface why.
+        const error = document.getElementById("error-state");
+        error.textContent = `Could not load branches: ${cause.message}. Showing ${DEFAULT_BRANCH}.`;
+        error.hidden = false;
+        branches = [DEFAULT_BRANCH];
+      }
+
+      select.replaceChildren(
+        ...branches.map((name) => {
+          const option = document.createElement("option");
+          option.value = name;
+          option.textContent = name;
+          return option;
+        })
+      );
+
+      select.addEventListener("change", () => loadBranch(select.value));
+      toggle.addEventListener("change", () => render(currentTasks, toggle.checked));
+
+      await loadBranch(select.value || DEFAULT_BRANCH);
+    }
+
+    await init();
   </script>
 </body>
 </html>
