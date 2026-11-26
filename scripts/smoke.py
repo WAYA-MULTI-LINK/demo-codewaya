@@ -177,6 +177,22 @@ def smoke_api(api):
     status, _ = api.call("DELETE", f"/api/tasks/{task_id}")
     record("API: delete missing -> 404", status == 404)
 
+    status, branches = api.call("GET", "/api/branches")
+    record("API: branches listed", status == 200 and "main" in branches)
+
+    api.call("POST", "/api/tasks?branch=smoke-a", {"title": "Branch A task"})
+    api.call("POST", "/api/tasks?branch=smoke-b", {"title": "Branch B task"})
+    _, only_a = api.call("GET", "/api/tasks?branch=smoke-a")
+    _, only_b = api.call("GET", "/api/tasks?branch=smoke-b")
+    record(
+        "API: branch isolation",
+        [t["title"] for t in only_a] == ["Branch A task"]
+        and [t["title"] for t in only_b] == ["Branch B task"],
+    )
+
+    status, _ = api.call("GET", "/api/tasks?branch=../etc")
+    record("API: invalid branch -> 400", status == 400)
+
 
 def smoke_static(api):
     """Confirm the viewer page is served and arbitrary files are not."""
@@ -216,7 +232,7 @@ def main():
         record("CLI section completed", False, repr(exc))
 
     print("\n== HTTP API ==")
-    server = make_server("127.0.0.1", 0, os.path.join(tmp, "api-tasks.json"))
+    server = make_server("127.0.0.1", 0, tmp)
     port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
