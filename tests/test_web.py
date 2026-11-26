@@ -220,6 +220,11 @@ class BranchSelectorTestCase(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertIn("error", body)
 
+    def test_branch_names_are_case_insensitive(self):
+        self.request("POST", "/api/tasks?branch=CaseTest", {"title": "Mixed case"})
+        _, lower = self.request("GET", "/api/tasks?branch=casetest")
+        self.assertEqual([t["title"] for t in lower], ["Mixed case"])
+
 
 if __name__ == "__main__":
     unittest.main()

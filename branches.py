@@ -26,14 +26,21 @@ class BranchError(ValueError):
 
 
 def validate_branch(name: str) -> str:
-    """Return ``name`` if it is a safe branch slug, else raise :class:`BranchError`."""
+    """Return the lowercased, safe branch slug or raise :class:`BranchError`.
+
+    Names are lowercased so that ``Main`` and ``main`` resolve to the same branch
+    and storage file. Without this, on case-insensitive filesystems (Windows,
+    macOS) two spellings would share one file under two different locks and could
+    corrupt it.
+    """
     if not isinstance(name, str) or not _BRANCH_RE.match(name):
         raise BranchError(
             "branch must be 1-64 chars of letters, digits, dot, dash or underscore"
         )
-    if name in (".", ".."):
+    lowered = name.lower()
+    if lowered in (".", ".."):
         raise BranchError("branch name may not be '.' or '..'")
-    return name
+    return lowered
 
 
 def storage_path_for(name: str, base_dir: str) -> str:
@@ -71,7 +78,7 @@ class BranchRegistry:
         prefix, suffix = "tasks-", ".json"
         for entry in os.listdir(self.base_dir):
             if entry.startswith(prefix) and entry.endswith(suffix):
-                stem = entry[len(prefix) : -len(suffix)]
+                stem = entry[len(prefix) : -len(suffix)].lower()
                 if _BRANCH_RE.match(stem) and stem not in (".", ".."):
                     branches.add(stem)
         # Include any branches already opened in memory.
