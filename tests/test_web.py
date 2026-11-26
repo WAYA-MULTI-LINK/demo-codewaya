@@ -10,8 +10,8 @@ import urllib.request
 from web import make_server
 
 
-class ApiTestCase(unittest.TestCase):
-    """Boot a real server on an ephemeral port backed by a temp storage file."""
+class ServerTestBase(unittest.TestCase):
+    """Boot a real server on an ephemeral port backed by a temp directory."""
 
     @classmethod
     def setUpClass(cls):
@@ -45,6 +45,10 @@ class ApiTestCase(unittest.TestCase):
                 return resp.status, json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             return exc.code, json.loads(exc.read().decode("utf-8"))
+
+
+class ApiTestCase(ServerTestBase):
+    """Exercise the core JSON task API."""
 
     def setUp(self):
         for task in self.request("GET", "/api/tasks")[1]:
@@ -150,38 +154,8 @@ class ApiTestCase(unittest.TestCase):
                 self.assertEqual(exc.code, 404, path)
 
 
-class BranchSelectorTestCase(unittest.TestCase):
+class BranchSelectorTestCase(ServerTestBase):
     """Branch selection: each branch has an isolated task list."""
-
-    @classmethod
-    def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
-        cls.server = make_server("127.0.0.1", 0, cls.tmp.name)
-        cls.port = cls.server.server_address[1]
-        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
-        cls.thread.start()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.server.shutdown()
-        cls.server.server_close()
-        cls.thread.join(timeout=5)
-        cls.tmp.cleanup()
-
-    def url(self, path):
-        return f"http://127.0.0.1:{self.port}{path}"
-
-    def request(self, method, path, body=None):
-        data = json.dumps(body).encode("utf-8") if body is not None else None
-        headers = {"Content-Type": "application/json"} if data else {}
-        req = urllib.request.Request(
-            self.url(path), data=data, method=method, headers=headers
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                return resp.status, json.loads(resp.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            return exc.code, json.loads(exc.read().decode("utf-8"))
 
     def test_branches_endpoint_lists_default(self):
         status, branches = self.request("GET", "/api/branches")
