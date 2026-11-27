@@ -44,6 +44,17 @@
       margin-bottom: 1rem;
     }
     .controls label { display: flex; align-items: center; gap: 0.4rem; color: var(--muted); }
+    #home-button {
+      padding: 0.35rem 0.85rem;
+      font: inherit;
+      color: var(--text);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.4rem;
+      cursor: pointer;
+    }
+    #home-button:hover { border-color: var(--accent); color: var(--accent); }
+    #home-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .summary { margin-left: auto; color: var(--muted); font-size: 0.9rem; }
     ul#task-list {
       list-style: none;
@@ -88,6 +99,7 @@
     </header>
 
     <div class="controls">
+      <button type="button" id="home-button" title="Reset to the default branch and show all tasks">Home</button>
       <label>
         Branch
         <select id="branch-select"></select>
@@ -200,6 +212,7 @@
     async function init() {
       const select = document.getElementById("branch-select");
       const toggle = document.getElementById("show-completed");
+      const home = document.getElementById("home-button");
 
       let branches = [DEFAULT_BRANCH];
       try {
@@ -229,6 +242,13 @@
 
       select.addEventListener("change", () => loadBranch(select.value));
       toggle.addEventListener("change", () => render(currentTasks, toggle.checked));
+      home.addEventListener("click", () => {
+        toggle.checked = true;
+        const branch = branches.includes(DEFAULT_BRANCH) ? DEFAULT_BRANCH : branches[0];
+        select.value = branch;
+        document.getElementById("error-state").hidden = true;
+        loadBranch(branch);
+      });
 
       await loadBranch(select.value || DEFAULT_BRANCH);
     }

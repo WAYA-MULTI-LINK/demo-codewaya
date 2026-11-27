@@ -86,6 +86,14 @@ class TestIndexPage(unittest.TestCase):
         """An empty task list shows the same friendly message as the CLI."""
         self.assertIn("No tasks found.", "".join(self.page.text))
 
+    def test_home_button_resets_view(self):
+        """The home button resets to the default branch with all tasks shown."""
+        self.assertIn("home-button", self.page.ids)
+        self.assertIn('getElementById("home-button")', self.source)
+        self.assertIn('home.addEventListener("click"', self.source)
+        self.assertIn("toggle.checked = true", self.source)
+        self.assertIn("branches.includes(DEFAULT_BRANCH)", self.source)
+
     def test_page_lists_status_id_title_and_description(self):
         """Rendered rows carry `[x]`/`[ ]`, the id, title and description."""
         self.assertIn('"[x]"', self.source)
